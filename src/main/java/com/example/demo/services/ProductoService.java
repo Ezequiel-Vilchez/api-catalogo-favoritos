@@ -1,5 +1,6 @@
 package com.example.demo.services;
 
+import com.example.demo.exception.RecursoNoEncontradoException;
 import com.example.demo.services.dto.ProductoDTO;
 import com.example.demo.services.dto.external.DummyCatalogResponse;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,7 @@ public class ProductoService {
         this.restClient = RestClient.create("https://dummyjson.com");
     }
 
-
     public List<ProductoDTO> obtenerProductos() {
-        
 
         DummyCatalogResponse respuesta = restClient.get()
                 .uri("/products")
@@ -30,13 +29,16 @@ public class ProductoService {
             return respuesta.products();
         }
 
-        return Collections.emptyList(); 
+        return Collections.emptyList();
     }
 
     public ProductoDTO obtenerProductoPorId(Long id) {
-    return restClient.get()
-            .uri("/products/{id}", id)
-            .retrieve()
-            .body(ProductoDTO.class);
+        return restClient.get()
+                .uri("/products/{id}", id)
+                .retrieve()
+                .onStatus(status -> status.value() == 404, (request, response) -> {
+                    throw new RecursoNoEncontradoException("El producto con ID " + id + " no existe en DummyJSON");
+                })
+                .body(ProductoDTO.class);
     }
 }
