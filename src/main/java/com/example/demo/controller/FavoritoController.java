@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class FavoritoController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED) 
     @Operation(summary = "Guardar favorito", description = "Valida y guarda un producto en la lista de favoritos")
-    public FavoritoOutputDTO crearFavorito(@RequestBody FavoritoInputDTO input) {
+    public FavoritoOutputDTO crearFavorito(@Valid @RequestBody FavoritoInputDTO input) {
         return favoritoService.crearFavorito(input);
     }
 
