@@ -32,4 +32,11 @@ public class ProductoService {
 
         return Collections.emptyList(); 
     }
+
+    public ProductoDTO obtenerProductoPorId(Long id) {
+    return restClient.get()
+            .uri("/products/{id}", id)
+            .retrieve()
+            .body(ProductoDTO.class);
+    }
 }
