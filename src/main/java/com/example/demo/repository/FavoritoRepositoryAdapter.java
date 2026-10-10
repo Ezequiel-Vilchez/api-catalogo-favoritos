@@ -2,13 +2,14 @@ package com.example.demo.repository;
 
 import com.example.demo.model.Favorito;
 import com.example.demo.model.FavoritoEntity;
+import com.example.demo.model.ListaEntity;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Repository 
+@Repository
 public class FavoritoRepositoryAdapter implements FavoritoRepository {
 
     private final FavoritoJpaRepository jpaRepository;
@@ -31,18 +32,21 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
 
     @Override
     public Favorito guardar(Favorito favorito) {
+        // Armamos la referencia a la lista
+        ListaEntity listaRef = null;
+        if (favorito.listaId() != null) {
+            listaRef = new ListaEntity(favorito.listaId(), null);
+        }
 
         FavoritoEntity entity = new FavoritoEntity(
                 favorito.id(),
                 favorito.productoId(),
                 favorito.notaPersonal(),
-                favorito.fechaAgregado()
+                favorito.fechaAgregado(),
+                listaRef
         );
         
-
         FavoritoEntity guardado = jpaRepository.save(entity);
-        
-
         return convertirADominio(guardado);
     }
 
@@ -52,11 +56,14 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
     }
 
     private Favorito convertirADominio(FavoritoEntity entity) {
+        Long listaId = (entity.getLista() != null) ? entity.getLista().getId() : null;
+        
         return new Favorito(
                 entity.getId(),
                 entity.getProductoId(),
                 entity.getNota(),
-                entity.getFechaAlta()
+                entity.getFechaAlta(),
+                listaId
         );
     }
 }

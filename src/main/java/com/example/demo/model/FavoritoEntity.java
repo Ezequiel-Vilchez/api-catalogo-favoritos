@@ -20,19 +20,23 @@ public class FavoritoEntity {
     @Column(name = "fecha_alta", nullable = false)
     private LocalDateTime fechaAlta;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lista_id")
+    private ListaEntity lista;
 
     public FavoritoEntity() {}
 
-    public FavoritoEntity(Long id, Long productoId, String nota, LocalDateTime fechaAlta) {
+    public FavoritoEntity(Long id, Long productoId, String nota, LocalDateTime fechaAlta, ListaEntity lista) {
         this.id = id;
         this.productoId = productoId;
         this.nota = nota;
         this.fechaAlta = fechaAlta;
+        this.lista = lista;
     }
-
 
     public Long getId() { return id; }
     public Long getProductoId() { return productoId; }
     public String getNota() { return nota; }
     public LocalDateTime getFechaAlta() { return fechaAlta; }
+    public ListaEntity getLista() { return lista; }
 }

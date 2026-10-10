@@ -6,5 +6,6 @@ public record Favorito(
     Long id,
     Long productoId, 
     String notaPersonal,
-    LocalDateTime fechaAgregado
+    LocalDateTime fechaAgregado,
+    Long listaId 
 ) {}
