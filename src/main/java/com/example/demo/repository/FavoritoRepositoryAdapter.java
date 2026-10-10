@@ -43,9 +43,8 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
                 favorito.productoId(),
                 favorito.notaPersonal(),
                 favorito.fechaAgregado(),
-                listaRef
-        );
-        
+                listaRef);
+
         FavoritoEntity guardado = jpaRepository.save(entity);
         return convertirADominio(guardado);
     }
@@ -55,15 +54,21 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
         jpaRepository.deleteById(id);
     }
 
+    @Override
+    public List<Favorito> buscarPorListaId(Long listaId) {
+        return jpaRepository.findByListaId(listaId).stream()
+                .map(this::convertirADominio)
+                .collect(Collectors.toList());
+    }
+
     private Favorito convertirADominio(FavoritoEntity entity) {
         Long listaId = (entity.getLista() != null) ? entity.getLista().getId() : null;
-        
+
         return new Favorito(
                 entity.getId(),
                 entity.getProductoId(),
                 entity.getNota(),
                 entity.getFechaAlta(),
-                listaId
-        );
+                listaId);
     }
 }

@@ -9,4 +9,5 @@ public interface FavoritoRepository {
     Optional<Favorito> buscarPorId(Long id);
     Favorito guardar(Favorito favorito);
     void eliminar(Long id);
+    List<Favorito> buscarPorListaId(Long listaId);
 }

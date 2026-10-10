@@ -10,5 +10,8 @@ public record FavoritoInputDTO(
 
     @NotBlank(message = "La nota personal no puede estar vacía")
     @Size(max = 255, message = "La nota no puede superar los 255 caracteres")
-    String notaPersonal
+    String notaPersonal,
+
+    @NotNull(message = "El favorito debe pertenecer a una lista")
+    Long listaId
 ) {}
