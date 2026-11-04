@@ -31,11 +31,17 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
     }
 
     @Override
+    public List<Favorito> buscarPorListaId(Long listaId) {
+        return jpaRepository.findByListaId(listaId).stream()
+                .map(this::convertirADominio)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Favorito guardar(Favorito favorito) {
-        // Armamos la referencia a la lista
         ListaEntity listaRef = null;
         if (favorito.listaId() != null) {
-            listaRef = new ListaEntity(favorito.listaId(), null);
+            listaRef = new ListaEntity(favorito.listaId());
         }
 
         FavoritoEntity entity = new FavoritoEntity(
@@ -43,32 +49,36 @@ public class FavoritoRepositoryAdapter implements FavoritoRepository {
                 favorito.productoId(),
                 favorito.notaPersonal(),
                 favorito.fechaAgregado(),
-                listaRef);
+                listaRef
+        );
 
         FavoritoEntity guardado = jpaRepository.save(entity);
         return convertirADominio(guardado);
     }
 
     @Override
-    public void eliminar(Long id) {
+    public void eliminarPorId(Long id) {
         jpaRepository.deleteById(id);
     }
 
     @Override
-    public List<Favorito> buscarPorListaId(Long listaId) {
-        return jpaRepository.findByListaId(listaId).stream()
-                .map(this::convertirADominio)
-                .collect(Collectors.toList());
+    public void moverFavoritos(Long origenId, Long destinoId) {
+        List<FavoritoEntity> favoritos = jpaRepository.findByListaId(origenId);
+        ListaEntity listaDestino = new ListaEntity(destinoId);
+        for (FavoritoEntity fav : favoritos) {
+            fav.setLista(listaDestino);
+            jpaRepository.save(fav);
+        }
     }
 
     private Favorito convertirADominio(FavoritoEntity entity) {
-        Long listaId = (entity.getLista() != null) ? entity.getLista().getId() : null;
-
+        Long listaId = entity.getLista() != null ? entity.getLista().getId() : null;
         return new Favorito(
                 entity.getId(),
                 entity.getProductoId(),
-                entity.getNota(),
-                entity.getFechaAlta(),
-                listaId);
+                entity.getNotaPersonal(),
+                entity.getFechaAgregado(),
+                listaId
+        );
     }
 }

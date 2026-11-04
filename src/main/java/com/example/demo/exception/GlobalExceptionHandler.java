@@ -34,4 +34,9 @@ public class GlobalExceptionHandler {
     public ApiError handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex) {
         return new ApiError("No Autorizado", ex.getMessage(), 401);
     }
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiError handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return new ApiError("Acceso Denegado", ex.getMessage(), 403);
+    }
 }
