@@ -1,25 +1,14 @@
 package com.example.demo.config;
 
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
-import org.springframework.context.annotation.Bean;
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Metadata general que aparece en Swagger UI (título, descripción, versión).
- * La documentación de cada endpoint puntual va con @Operation en el
- * controller correspondiente.
- */
 @Configuration
+@OpenAPIDefinition(info = @Info(title = "TP3 - API Catálogo y Favoritos", version = "v1"), security = @SecurityRequirement(name = "BearerAuth"))
+@SecurityScheme(name = "BearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT")
 public class OpenApiConfig {
-
-    @Bean
-    public OpenAPI demoOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("TP1 · Catálogo y Favoritos")
-                        .description("Catálogo de productos (consumo de una API externa) + favoritos "
-                                + "(CRUD propio en memoria). Práctico de introducción a Spring Boot.")
-                        .version("v1"));
-    }
 }

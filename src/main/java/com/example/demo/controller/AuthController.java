@@ -1,6 +1,8 @@
 package com.example.demo.controller;
 
 import com.example.demo.services.AuthService;
+import com.example.demo.services.dto.LoginInputDTO;
+import com.example.demo.services.dto.LoginOutputDTO;
 import com.example.demo.services.dto.RegistroInputDTO;
 import com.example.demo.services.dto.UsuarioOutputDTO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,5 +28,11 @@ public class AuthController {
     @Operation(summary = "Registrar un nuevo usuario")
     public ResponseEntity<UsuarioOutputDTO> registrar(@Valid @RequestBody RegistroInputDTO input) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(input));
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Iniciar sesión y obtener token JWT")
+    public ResponseEntity<LoginOutputDTO> login(@Valid @RequestBody LoginInputDTO input) {
+        return ResponseEntity.ok(authService.login(input));
     }
 }

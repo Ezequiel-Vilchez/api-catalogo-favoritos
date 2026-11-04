@@ -29,4 +29,9 @@ public class GlobalExceptionHandler {
     public ApiError handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return new ApiError("Conflicto", "No se puede eliminar la lista porque todavía tiene favoritos asociados.", 409);
     }
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiError handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex) {
+        return new ApiError("No Autorizado", ex.getMessage(), 401);
+    }
 }
