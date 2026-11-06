@@ -36,8 +36,17 @@ public class SecurityConfig {
                 // Sin token o con token inválido: 401 (por defecto Spring respondería 403)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/productos/**", "/swagger-ui/**", "/v3/api-docs/**",
-                                "/ping", "/health")
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/productos/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/ping",
+                                "/health"
+                        )
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
