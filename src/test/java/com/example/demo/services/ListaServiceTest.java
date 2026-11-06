@@ -69,7 +69,7 @@ class ListaServiceTest {
         ArgumentCaptor<Lista> captor = ArgumentCaptor.forClass(Lista.class);
         verify(listaRepository).guardar(captor.capture());
         assertEquals(usuarioComun.id(), captor.getValue().usuario().id());
-        assertEquals("Otra cosa", captor.getValue().nombre());
+        assertEquals("Peliculas", captor.getValue().nombre());
     }
 
     @Test
