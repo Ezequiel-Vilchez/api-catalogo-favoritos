@@ -134,3 +134,47 @@ El workflow `.github/workflows/ci.yml` se ejecuta en cada push (y pull request).
 3. Abrir el job `build` y el paso *Compilar y ejecutar pruebas*. Buscar `<<< ERROR` o `<<< FAILURE` para ver qué test falló y por qué.
 
 **Verificación:** se rompió un test a propósito (commit `test: romper un test a propósito...`) y la corrida quedó en rojo; luego se revirtió y volvió a verde.
+
+## Despliegue en la Nube (Render)
+
+
+
+La aplicación ha sido desplegada exitosamente en **Render** utilizando un entorno basado en contenedores Docker y conectada a una base de datos PostgreSQL remota gestionada en la misma plataforma.
+
+
+
+### Pasos de Despliegue Realizados
+
+1. **Creación del servicio:** Se configuró un nuevo *Web Service* en Render vinculado a la rama `main` del repositorio de GitHub (`api-catalogo-favoritos`).
+
+2. **Entorno Docker:** Se utilizó un `Dockerfile` optimizado en dos etapas (compilación con Maven y ejecución con Java 21 JRE).
+
+3. **Configuración de Variables de Entorno en el Dashboard:**
+
+   - `SPRING_DATASOURCE_URL`: `jdbc:postgresql://<host-remoto>:5432/<nombre_db>` (configurado con el prefijo JDBC obligatorio).
+
+   - `SPRING_DATASOURCE_USERNAME`: Usuario provisto por PostgreSQL en Render.
+
+   - `SPRING_DATASOURCE_PASSWORD`: Contraseña segura provista por la base de datos remota.
+
+   - `JWT_SECRET`: Clave de firma simétrica para la autenticación sin estado.
+
+   - `SPRING_PROFILES_ACTIVE`: `prod`
+
+4. **Empaquetado y Migraciones:** Gracias al `spring-boot-maven-plugin`, el `.jar` ejecutable se genera con el servidor Tomcat embebido, permitiendo que Flyway ejecute automáticamente las migraciones (`V1` a `V6`) sobre la base de datos remota al iniciar.
+
+
+
+### Evidencias del Despliegue y Pruebas
+
+*   **URL Pública del Servicio:** [https://api-catalogo-favoritos.onrender.com](https://api-catalogo-favoritos.onrender.com)
+
+*   **Endpoint de Salud (`GET /health`):** Responde con éxito (`200 OK`) desde la URL pública, confirmando que el servidor web se encuentra operativo y respondiendo peticiones.
+
+*   **Control de Acceso y Seguridad:**
+
+    *   **Sin Token / Token Inválido:** Las rutas protegidas (ej. `/api/listas`) devuelven estrictamente un código **`401 Unauthorized`**, protegiendo los recursos privados.
+
+    *   **Con Token Válido:** Al autenticarse previamente en `/api/auth/login` y enviar el header `Authorization: Bearer <token>`, el servidor procesa la petición devolviendo un código **`200 OK`**.
+
+*   **Documentación Interactiva:** Accesible públicamente en [https://api-catalogo-favoritos.onrender.com/swagger-ui.html](https://api-catalogo-favoritos.onrender.com/swagger-ui.html).
