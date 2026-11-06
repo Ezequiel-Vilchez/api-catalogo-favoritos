@@ -1,26 +1,32 @@
 # API Catálogo de Productos y Favoritos (TP1)
 
-Esta es una API RESTful desarrollada con Spring Boot 3 y Java 21, diseñada para consumir un catálogo de productos externo (DummyJSON) y gestionar una lista local de productos favoritos en memoria.
+Esta es una API RESTful desarrollada con Spring Boot y Java, diseñada para consumir un catálogo de productos externo (DummyJSON) y gestionar listas de productos favoritos.
 
 ## Arquitectura y Tecnologías
-*   **Java 21 / Spring Boot 3.2+**
+*   **Java 25 / Spring Boot 4.1**
 *   **Spring Web MVC:** Manejo de rutas y peticiones HTTP.
 *   **RestClient:** Cliente HTTP moderno para consumo de APIs externas.
 *   **Bean Validation:** Validación robusta de datos de entrada (DTOs).
 *   **Swagger / OpenAPI 3:** Documentación interactiva de la API.
-*   **Arquitectura en Capas:** Controller, Service, Repository, Model/DTO.
+*   **Spring Security + JWT:** Autenticación y autorización (TP3).
+*   **PostgreSQL + JPA + Flyway:** Persistencia y migraciones (TP2).
+*   **Testcontainers + JUnit 5 + Mockito:** Pruebas (TP3).
+*   **Arquitectura en Capas / Hexagonal:** Controller, Service, Repository (puerto y adaptador), Model/DTO.
 
 ## Requisitos Previos
-*   JDK 21 instalado.
+*   JDK 25 instalado.
+*   Docker (para la base de datos local y para las pruebas de integración).
 *   Maven (o usar el Wrapper de Maven incluido en el proyecto).
 
 ## Instalación y Ejecución
 
 1. Clonar el repositorio.
 2. Navegar a la raíz del proyecto.
-3. Ejecutar la aplicación usando Maven Wrapper:
+3. Levantar la base de datos (ver sección TP2) y ejecutar la aplicación con el Maven Wrapper:
    ```bash
    ./mvnw spring-boot:run
+   ```
+4. La documentación interactiva queda en `http://localhost:8080/swagger-ui.html`.
 
 # TP2 - API Catálogo Favoritos (PostgreSQL, JPA, Flyway)
 
@@ -38,5 +44,93 @@ Esto fue posible gracias a la Arquitectura Hexagonal. `FavoritoRepository` funci
 Flyway lleva un registro estricto de las migraciones ejecutadas mediante la tabla `flyway_schema_history` calculando un checksum (una firma) del archivo. Si editamos un archivo ya aplicado (`V1`, `V2` o `V3`), el checksum cambiará, Flyway detectará la inconsistencia y lanzará un error impidiendo que la aplicación arranque. Para evolucionar el esquema de manera segura sin romper entornos que ya aplicaron las primeras migraciones, siempre se debe avanzar hacia adelante creando nuevos archivos (ej: `V4`).
 
 ## Transacciones y Propiedades ACID (Punto 7.3)
-En el endpoint de mover favoritos utilizamos la anotación `@Transactional`. En términos de las propiedades **ACID**, esto garantiza la **Atomicidad** (todo o nada). 
+En el endpoint de mover favoritos utilizamos la anotación `@Transactional`. En términos de las propiedades **ACID**, esto garantiza la **Atomicidad** (todo o nada).
 Si sacáramos el `@Transactional` y tuviéramos que mover 5 favoritos, podría ocurrir que se actualicen los primeros 3 y, por un error de red o base de datos, los últimos 2 fallen. Esto dejaría la base de datos en un estado **inconsistente** (datos a medias). Con `@Transactional`, si la escritura del favorito 4 falla, se hace un *rollback* automático y los favoritos 1, 2 y 3 vuelven a su estado original, asegurando la integridad de la información.
+
+# TP3 - Seguridad, pruebas e integración continua
+
+## Autenticación y autorización
+
+La API usa **JWT** (stateless). El flujo es:
+
+1. `POST /api/auth/registro` crea un usuario con rol `USER`. La contraseña se guarda hasheada con BCrypt, nunca en texto plano. Si el email ya existe responde `409`.
+2. `POST /api/auth/login` valida las credenciales y devuelve un token firmado que lleva el id y el rol del usuario. Credenciales inválidas responden `401`.
+3. Las demás requests envían `Authorization: Bearer <token>`. Un filtro (`JwtAuthenticationFilter`) valida el token y deja al usuario disponible para el resto del request.
+
+| Ruta | Acceso |
+|---|---|
+| `/api/auth/**`, `/api/productos/**`, `/health`, `/ping`, Swagger | Público |
+| `/api/listas/**`, `/api/favoritos/**` | Requiere token válido (si no, `401`) |
+
+| Situación | Respuesta |
+|---|---|
+| Sin token, token inválido o vencido | `401 Unauthorized` |
+| Lista de otro usuario (siendo `USER`) | `403 Forbidden` |
+| Lista de otro usuario (siendo `ADMIN`) | `200 OK` |
+| Lista que no existe | `404 Not Found` |
+
+Un `USER` solo ve y modifica sus propias listas (y los favoritos que cuelgan de ellas). Un `ADMIN` puede ver las de cualquiera. Al crear una lista, el dueño es siempre el usuario autenticado, nunca un dato que mande el cliente en el body.
+
+### ¿Dónde vive la regla de autorización y por qué? (Consigna 4.5)
+
+La regla "esta lista tiene que ser tuya, salvo que seas ADMIN" vive en la **capa de servicio**, en `ListaService.validarPropiedad`. `FavoritoService` no la repite: antes de operar sobre favoritos llama a `ListaService.obtenerListaPorId`, que valida existencia (`404`) y propiedad (`403`).
+
+La elegí ahí y no en el Controller por estas razones:
+
+*   **Es una regla de negocio, no de HTTP.** Si mañana la misma operación se invoca desde otro controller, un job o un test, la regla se sigue aplicando. En un Controller habría que copiarla en cada endpoint y es fácil olvidarse de uno (de hecho, los favoritos colgaban de la lista y estaban sin proteger hasta centralizarla).
+*   **Necesita datos que el Controller no tiene.** Para saber de quién es una lista hay que cargarla de la base de datos. Eso es trabajo del servicio, que ya la tiene en mano.
+*   **Es testeable sin levantar Spring MVC.** `ListaServiceTest` prueba la regla con Mockito: lista ajena lanza `AccessDeniedException`, `ADMIN` pasa.
+*   **El Controller queda fino:** solo traduce HTTP a llamadas al servicio.
+
+Tampoco la puse en el filtro JWT ni en `SecurityConfig`: ahí solo se sabe *quién* es el usuario y qué rutas son públicas, pero no a quién pertenece cada recurso. Por eso el reparto queda así: el **filtro** autentica (¿quién sos?), `SecurityConfig` decide qué rutas exigen token, y el **servicio** autoriza sobre el recurso concreto (¿esto es tuyo?). Las excepciones se traducen a `403`/`404`/`409` en un único lugar, `GlobalExceptionHandler`.
+
+## Variables de entorno
+
+Los datos sensibles se leen del entorno y tienen un valor por defecto para que funcione en local sin configurar nada:
+
+| Variable | Uso | Valor por defecto (solo local) |
+|---|---|---|
+| `DB_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/tp2_db` |
+| `DB_USER` | Usuario de la base | `postgres` |
+| `DB_PASSWORD` | Contraseña de la base | `admin` |
+| `JWT_SECRET` | Secreto para firmar los tokens | clave de desarrollo |
+
+En un entorno real (producción) hay que definir siempre `JWT_SECRET` con un valor propio y largo.
+
+## Cómo correr los tests
+
+Hay dos tipos de pruebas, distinguidas por el sufijo del nombre de la clase:
+
+*   **Unitarias (`*Test`)**, ejecutadas por Surefire: `ListaServiceTest`, `AuthServiceTest`. Usan Mockito, sin base de datos.
+*   **De integración (`*IT`)**, ejecutadas por Failsafe: `AuthAndListaIntegrationIT`. Levantan un PostgreSQL real con **Testcontainers** y Flyway aplica todas las migraciones contra esa base limpia en cada ejecución.
+
+`DemoApplicationTests` (verifica que el contexto de Spring arranca) también usa Testcontainers.
+
+**Requiere Docker corriendo.**
+
+```bash
+./mvnw verify          # compila y corre TODO (unitarias + integración)
+./mvnw test            # solo la fase de Surefire (*Test y DemoApplicationTests)
+```
+
+En Windows con Docker Desktop, si Testcontainers no encuentra Docker, exponer el daemon en *Settings → General → Expose daemon on tcp://localhost:2375 without TLS* y definir antes de correr:
+
+```powershell
+$env:DOCKER_HOST="tcp://127.0.0.1:2375"
+$env:TESTCONTAINERS_RYUK_DISABLED="true"
+.\mvnw.cmd clean verify
+```
+
+Los reportes quedan en `target/surefire-reports` y `target/failsafe-reports`.
+
+## Integración continua (GitHub Actions)
+
+El workflow `.github/workflows/ci.yml` se ejecuta en cada push (y pull request). Corre en un entorno limpio (`ubuntu-latest`, sin PostgreSQL local), instala Java 25 y ejecuta `./mvnw clean verify`. Como GitHub Actions ya trae Docker, Testcontainers levanta su propia base y las migraciones corren contra una base vacía.
+
+**Cómo leer el resultado:**
+
+1. En el repositorio, pestaña **Actions**, abrir la corrida más reciente.
+2. Tilde verde: todo pasó. Cruz roja: algo falló.
+3. Abrir el job `build` y el paso *Compilar y ejecutar pruebas*. Buscar `<<< ERROR` o `<<< FAILURE` para ver qué test falló y por qué.
+
+**Verificación:** se rompió un test a propósito (commit `test: romper un test a propósito...`) y la corrida quedó en rojo; luego se revirtió y volvió a verde.
