@@ -126,13 +126,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<systemPropertyVariables>
-						<testcontainers.docker.client.strategy>org.testcontainers.dockerclient.EnvironmentAndSystemPropertyClientProviderStrategy</testcontainers.docker.client.strategy>
-						<docker.host>tcp://127.0.0.1:2375</docker.host>
-						<testcontainers.ryuk.disabled>true</testcontainers.ryuk.disabled>
-					</systemPropertyVariables>
-				</configuration>
 				<executions>
 					<execution>
 						<goals>
