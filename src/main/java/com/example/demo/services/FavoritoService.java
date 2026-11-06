@@ -2,7 +2,6 @@ package com.example.demo.services;
 
 import com.example.demo.model.Favorito;
 import com.example.demo.repository.FavoritoRepository;
-import com.example.demo.repository.ListaRepository;
 import com.example.demo.services.dto.FavoritoInputDTO;
 import com.example.demo.services.dto.FavoritoOutputDTO;
 import org.springframework.stereotype.Service;
@@ -10,30 +9,38 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * Los favoritos cuelgan de una lista, y la lista pertenece a un usuario.
+ * Por eso toda operación sobre favoritos primero pasa por ListaService.obtenerListaPorId,
+ * que es donde vive la regla de autorización (404 si no existe, 403 si no es tuya ni sos ADMIN).
+ * De esta forma la regla está en un solo lugar y no se duplica.
+ */
 @Service
 public class FavoritoService {
 
     private final FavoritoRepository favoritoRepository;
     private final ProductoService productoService;
-    private final ListaRepository listaRepository;
+    private final ListaService listaService;
 
-    public FavoritoService(FavoritoRepository favoritoRepository, ProductoService productoService, ListaRepository listaRepository) {
+    public FavoritoService(FavoritoRepository favoritoRepository, ProductoService productoService, ListaService listaService) {
         this.favoritoRepository = favoritoRepository;
         this.productoService = productoService;
-        this.listaRepository = listaRepository;
+        this.listaService = listaService;
     }
 
     public FavoritoOutputDTO crearFavorito(FavoritoInputDTO input) {
+        // Valida que la lista exista y sea del usuario autenticado (o que sea ADMIN)
+        listaService.obtenerListaPorId(input.listaId());
+
         productoService.obtenerProductoPorId(input.productoId());
 
         Favorito nuevoFavorito = new Favorito(
-                null, 
+                null,
                 input.productoId(),
                 input.notaPersonal(),
                 LocalDateTime.now(),
-                input.listaId() 
+                input.listaId()
         );
 
         Favorito guardado = favoritoRepository.guardar(nuevoFavorito);
@@ -41,19 +48,48 @@ public class FavoritoService {
         return convertirAOutputDTO(guardado);
     }
 
+    /**
+     * Devuelve los favoritos de las listas visibles para el usuario autenticado:
+     * solo las suyas si es USER, todas si es ADMIN.
+     */
     public List<FavoritoOutputDTO> listarFavoritos() {
-        return favoritoRepository.buscarTodos().stream()
+        return listaService.listarListas().stream()
+                .flatMap(lista -> favoritoRepository.buscarPorListaId(lista.id()).stream())
                 .map(this::convertirAOutputDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<FavoritoOutputDTO> listarFavoritosPorLista(Long listaId) {
-        listaRepository.buscarPorId(listaId)
-                .orElseThrow(() -> new RuntimeException("Lista no encontrada"));
+        listaService.obtenerListaPorId(listaId);
 
         return favoritoRepository.buscarPorListaId(listaId).stream()
                 .map(this::convertirAOutputDTO)
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    @Transactional
+    public void moverFavoritos(Long origenId, Long destinoId) {
+        if (origenId.equals(destinoId)) {
+            throw new IllegalArgumentException("La lista de origen y destino no pueden ser iguales");
+        }
+
+        // Ambas listas tienen que existir y ser del usuario autenticado (o ser ADMIN)
+        listaService.obtenerListaPorId(origenId);
+        listaService.obtenerListaPorId(destinoId);
+
+        List<Favorito> favoritosOrigen = favoritoRepository.buscarPorListaId(origenId);
+
+        for (Favorito fav : favoritosOrigen) {
+            Favorito favoritoActualizado = new Favorito(
+                    fav.id(),
+                    fav.productoId(),
+                    fav.notaPersonal(),
+                    fav.fechaAgregado(),
+                    destinoId
+            );
+
+            favoritoRepository.guardar(favoritoActualizado);
+        }
     }
 
     private FavoritoOutputDTO convertirAOutputDTO(Favorito favorito) {
@@ -62,34 +98,7 @@ public class FavoritoService {
                 favorito.productoId(),
                 favorito.notaPersonal(),
                 favorito.fechaAgregado(),
-                favorito.listaId() 
+                favorito.listaId()
         );
-    }
-    @Transactional
-    public void moverFavoritos(Long origenId, Long destinoId) {
-        if (origenId.equals(destinoId)) {
-            throw new IllegalArgumentException("La lista de origen y destino no pueden ser iguales");
-        }
-
-        listaRepository.buscarPorId(origenId)
-                .orElseThrow(() -> new RuntimeException("Lista origen no encontrada"));
-        listaRepository.buscarPorId(destinoId)
-                .orElseThrow(() -> new RuntimeException("Lista destino no encontrada"));
-
-        List<Favorito> favoritosOrigen = favoritoRepository.buscarPorListaId(origenId);
-
-
-        for (Favorito fav : favoritosOrigen) {
-
-            Favorito favoritoActualizado = new Favorito(
-                    fav.id(),
-                    fav.productoId(),
-                    fav.notaPersonal(),
-                    fav.fechaAgregado(),
-                    destinoId
-            );
-            
-            favoritoRepository.guardar(favoritoActualizado);
-        }
     }
 }

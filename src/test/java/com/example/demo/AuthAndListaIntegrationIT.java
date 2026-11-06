@@ -158,4 +158,69 @@ class AuthAndListaIntegrationIT extends AbstractIntegrationTest {
                 .header("Authorization", "Bearer " + tokenAdmin))
                 .andExpect(status().isOk());
     }
+
+    // ---------- Escenarios adicionales (consignas 2 y 4) ----------
+
+    @Test
+    void registro_emailDuplicado_devuelve409() throws Exception {
+        String email = emailUnico();
+        registrar(email);
+
+        mockMvc.perform(post("/api/auth/registro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegistroInputDTO(email, PASSWORD))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void listarListas_usuarioComun_devuelveSoloLasPropias() throws Exception {
+        String tokenA = registrarYLogin();
+        String tokenB = registrarYLogin();
+        crearLista(tokenA, "A1");
+        crearLista(tokenA, "A2");
+        crearLista(tokenB, "B1");
+
+        mockMvc.perform(get("/api/listas")
+                .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void listarFavoritosDeLista_listaAjena_devuelve403() throws Exception {
+        String tokenDueno = registrarYLogin();
+        String tokenOtro = registrarYLogin();
+        long listaId = crearLista(tokenDueno, "Lista privada");
+
+        mockMvc.perform(get("/api/listas/" + listaId + "/favoritos")
+                .header("Authorization", "Bearer " + tokenOtro))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void moverFavoritos_origenAjeno_devuelve403() throws Exception {
+        String tokenDueno = registrarYLogin();
+        String tokenAtacante = registrarYLogin();
+        long origenAjeno = crearLista(tokenDueno, "Origen de otro");
+        long destinoPropio = crearLista(tokenAtacante, "Mi destino");
+
+        mockMvc.perform(post("/api/listas/" + origenAjeno + "/mover-favoritos")
+                .header("Authorization", "Bearer " + tokenAtacante)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"listaDestinoId\":" + destinoPropio + "}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void crearFavorito_enListaAjena_devuelve403() throws Exception {
+        String tokenDueno = registrarYLogin();
+        String tokenAtacante = registrarYLogin();
+        long listaAjena = crearLista(tokenDueno, "Lista de otro");
+
+        mockMvc.perform(post("/api/favoritos")
+                .header("Authorization", "Bearer " + tokenAtacante)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"productoId\":1,\"notaPersonal\":\"nota\",\"listaId\":" + listaAjena + "}"))
+                .andExpect(status().isForbidden());
+    }
 }

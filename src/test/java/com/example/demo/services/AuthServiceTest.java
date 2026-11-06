@@ -1,6 +1,7 @@
 package com.example.demo.services;
 
 import com.example.demo.config.JwtProvider;
+import com.example.demo.exception.ConflictoException;
 import com.example.demo.model.Rol;
 import com.example.demo.model.Usuario;
 import com.example.demo.repository.UsuarioRepository;
@@ -11,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,10 +60,10 @@ class AuthServiceTest {
     }
 
     @Test
-    void registrar_emailExistente_lanzaExcepcionYNoGuarda() {
+    void registrar_emailExistente_lanzaConflictoYNoGuarda() {
         when(usuarioRepository.existePorEmail("a@example.com")).thenReturn(true);
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConflictoException.class,
                 () -> authService.registrar(new RegistroInputDTO("a@example.com", "secreta123")));
 
         verify(usuarioRepository, never()).guardar(any());

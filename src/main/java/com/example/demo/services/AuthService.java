@@ -1,6 +1,7 @@
 package com.example.demo.services;
 
 import com.example.demo.config.JwtProvider;
+import com.example.demo.exception.ConflictoException;
 import com.example.demo.model.Rol;
 import com.example.demo.model.Usuario;
 import com.example.demo.repository.UsuarioRepository;
@@ -8,7 +9,6 @@ import com.example.demo.services.dto.LoginInputDTO;
 import com.example.demo.services.dto.LoginOutputDTO;
 import com.example.demo.services.dto.RegistroInputDTO;
 import com.example.demo.services.dto.UsuarioOutputDTO;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ public class AuthService {
     @Transactional
     public UsuarioOutputDTO registrar(RegistroInputDTO input) {
         if (usuarioRepository.existePorEmail(input.email())) {
-            throw new DataIntegrityViolationException("El email ya se encuentra registrado.");
+            throw new ConflictoException("El email ya se encuentra registrado.");
         }
 
         String hash = passwordEncoder.encode(input.password());

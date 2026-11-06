@@ -23,17 +23,32 @@ public class GlobalExceptionHandler {
         return new ApiError("Error de Validación", errorMsg, 400);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleIllegalArgument(IllegalArgumentException ex) {
+        return new ApiError("Solicitud Inválida", ex.getMessage(), 400);
+    }
 
+    // Conflictos de negocio con mensaje propio (ej: email ya registrado)
+    @ExceptionHandler(ConflictoException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleConflicto(ConflictoException ex) {
+        return new ApiError("Conflicto", ex.getMessage(), 409);
+    }
+
+    // Violación de integridad en base de datos (ej: borrar una lista con favoritos)
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         return new ApiError("Conflicto", "No se puede eliminar la lista porque todavía tiene favoritos asociados.", 409);
     }
+
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiError handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex) {
         return new ApiError("No Autorizado", ex.getMessage(), 401);
     }
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiError handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
